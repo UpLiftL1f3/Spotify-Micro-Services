@@ -6,6 +6,24 @@ import (
 	"strings"
 )
 
+func CreateNewUserValidator(u *CreateUserRequest) error {
+	err := FirstNameValidator(strings.TrimSpace(u.FirstName))
+	if err != nil {
+		return err
+	}
+
+	err = EmailValidator(u.Email)
+	if err != nil {
+		return err
+	}
+
+	err = PasswordValidator(strings.TrimSpace(u.Password))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 func CreateUserValidator(u *User) error {
 	err := FirstNameValidator(strings.TrimSpace(u.FirstName))
 	if err != nil {

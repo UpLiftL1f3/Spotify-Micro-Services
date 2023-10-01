@@ -14,6 +14,11 @@ func (app *Config) routes() http.Handler {
 
 	mux.HandleFunc("/authenticate", app.Authenticate)
 	mux.HandleFunc("/addUser", app.InsertNewUser)
+	mux.HandleFunc("/verifyEmail", app.verifyEmail)
+	mux.HandleFunc("/reverifyEmail", app.sendReverificationEmail)
+	mux.HandleFunc("/requestPasswordReset", app.generateResetPasswordViaEmail)
+	mux.HandleFunc("/validatePasswordReset", app.validateResetPassToken)
+	mux.HandleFunc("/resetPassword", app.ResetUserPassword)
 
 	// Create a CORS middleware instance
 	corsMiddleware := func(handler http.Handler) http.Handler {

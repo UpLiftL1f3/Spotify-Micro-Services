@@ -31,6 +31,8 @@ func main() {
 
 	log.Println("Starting authentication service")
 
+	data.LoadEnvVariables()
+
 	//!  connect to DB
 	conn := connectToDB()
 	if conn == nil {
