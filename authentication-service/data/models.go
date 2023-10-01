@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -31,16 +34,27 @@ type Models struct {
 	User User
 }
 
+type Avatar struct {
+	Url      string
+	PublicID string
+}
+
 // User is the structure which holds one user from the database.
 type User struct {
-	ID        int       `json:"id"`
-	Email     string    `json:"email"`
-	FirstName string    `json:"firstName,omitempty"`
-	LastName  string    `json:"lastName,omitempty"`
-	Password  string    `json:"password"`
-	Active    int       `json:"active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID             int         `json:"id"`
+	Email          string      `json:"email"`
+	FirstName      string      `json:"firstName,omitempty"`
+	LastName       string      `json:"lastName,omitempty"`
+	Password       string      `json:"password"`
+	Verified       bool        `json:"verified"`
+	Avatar         Avatar      `json:"avatar,omitempty"`
+	FavoritesAudio []uuid.UUID `json:"favoritesAudio,omitempty"`
+	Followers      []uuid.UUID `json:"followers,omitempty"`
+	Following      []uuid.UUID `json:"following,omitempty"`
+	Token          []string    `json:"token"`
+	Active         int         `json:"active"`
+	CreatedAt      time.Time   `json:"created_at"`
+	UpdatedAt      time.Time   `json:"updated_at"`
 }
 
 // GetAll returns a slice of all users, sorted by last name
@@ -171,34 +185,51 @@ func (u *User) DeleteByID(id int) error {
 	return nil
 }
 
-// Insert inserts a new user into the database, and returns the ID of the newly inserted row
-func (u *User) Insert(user User) (int, error) {
+// Insert inserts a new user into the database.
+func (u *User) Insert() (uuid.UUID, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 12)
-	if err != nil {
-		return 0, err
+	if err := CreateUserValidator(u); err != nil {
+		return uuid.Nil, err
 	}
 
-	var newID int
-	stmt := `insert into users (email, first_name, last_name, password, user_active, created_at, updated_at)
-		values ($1, $2, $3, $4, $5, $6, $7) returning id`
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(strings.TrimSpace(u.Password)), 12)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("password error")
+	}
+
+	var newID uuid.UUID
+	stmt := `
+		INSERT INTO spotifyClone_schema.users (
+			email, first_name, last_name, password, verified, avatar, 
+			favorites_audio, followers, following, token, active, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		RETURNING id
+	`
 
 	err = db.QueryRowContext(ctx, stmt,
-		user.Email,
-		user.FirstName,
-		user.LastName,
+		u.Email,
+		strings.TrimSpace(u.FirstName),
+		strings.TrimSpace(u.LastName),
 		hashedPassword,
-		user.Active,
+		u.Verified,
+		u.Avatar,
+		u.FavoritesAudio,
+		u.Followers,
+		u.Following,
+		u.Token,
+		u.Active,
 		time.Now(),
 		time.Now(),
 	).Scan(&newID)
 
 	if err != nil {
-		return 0, err
+		fmt.Println("Query Row Error: ", err)
+		return uuid.Nil, err
 	}
 
+	fmt.Println("INSERT HIT THE END NIL AS ERROR")
 	return newID, nil
 }
 
@@ -265,4 +296,9 @@ func (u *User) PasswordMatches(plainText string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// Assuming you have a function to convert a string to a UUID
+func parseUUID(str string) (uuid.UUID, error) {
+	return uuid.Parse(str)
 }

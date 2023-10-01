@@ -19,7 +19,7 @@ import (
 
 type RequestPayload struct {
 	Action string      `json:"action"` //? what do you want to do
-	Auth   AuthPayload `json:"auth,omitempty"`
+	Auth   any         `json:"auth,omitempty"`
 	Log    LogPayload  `json:"log,omitempty"`
 	Mail   MailPayload `json:"mail,omitempty"`
 }
@@ -76,7 +76,7 @@ func (app *Config) HandelSubmission(w http.ResponseWriter, r *http.Request) {
 
 	switch requestPayload.Action {
 	case "auth":
-		app.authenticate(w, requestPayload.Auth)
+		app.Register(w, requestPayload.Auth)
 
 	case "log":
 		app.LogEventViaRPC(w, requestPayload.Log)
@@ -144,6 +144,53 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 	var payload JsonResponse
 	payload.Error = false
 	payload.Message = "Authenticated"
+	payload.Data = jsonFromService.Data
+
+	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) Register(w http.ResponseWriter, a any) {
+	// create some JSON we'll send to the microservice
+	jsonData, _ := json.MarshalIndent(a, "", "\t")
+	// fmt.Printf("FIRST auth HIT %s", jsonData)
+
+	request, err := http.NewRequest("POST", "http://authentication-service/addUser", bytes.NewBuffer(jsonData))
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	defer response.Body.Close()
+
+	// create a variable we'll read response.body into
+	var jsonFromService JsonResponse
+
+	// decode json from the auth service
+	_ = json.NewDecoder(response.Body).Decode(&jsonFromService)
+
+	if jsonFromService.Error {
+		app.errorJSON(w, errors.New(jsonFromService.Message), http.StatusUnauthorized)
+		return
+	}
+
+	// make sure we get back the correct status code
+	if response.StatusCode == http.StatusUnauthorized {
+		app.errorJSON(w, errors.New("invalid credentials"))
+		return
+	} else if response.StatusCode != http.StatusAccepted && response.StatusCode != http.StatusOK {
+		app.errorJSON(w, errors.New("error calling auth service"))
+		return
+	}
+
+	var payload JsonResponse
+	payload.Error = false
+	payload.Message = jsonFromService.Message
 	payload.Data = jsonFromService.Data
 
 	app.writeJSON(w, http.StatusAccepted, payload)
@@ -303,6 +350,7 @@ func (app *Config) LogViaGRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("LOG EVENT VIA GRPC HIT 2")
 	conn, err := grpc.Dial("logger-service:50001", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		app.errorJSON(w, err)
@@ -310,11 +358,12 @@ func (app *Config) LogViaGRPC(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
+	fmt.Println("LOG EVENT VIA GRPC HIT 3")
 	client := logs.NewLogServiceClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	fmt.Println("WRITE LOG GRPC HIT (POST)")
+	fmt.Println("LOG EVENT VIA GRPC HIT 4")
 
 	_, err = client.WriteLog(ctx, &logs.LogRequest{
 		LogEntry: &logs.Log{

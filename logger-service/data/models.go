@@ -17,7 +17,7 @@ var collection *mongo.Collection
 
 func New(mongo *mongo.Client) Models {
 	client = mongo
-	collection = client.Database("logs").Collection("logs")
+	collection = client.Database(Database).Collection("logs")
 	return Models{
 		LogEntry: LogEntry{},
 	}

@@ -9,3 +9,5 @@ use ./listener-service
 use ./logger-service
 
 use ./mail-service
+
+use ./shared

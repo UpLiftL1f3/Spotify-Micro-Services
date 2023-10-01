@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -68,6 +69,7 @@ func (app *Config) errorJSON(w http.ResponseWriter, err error, status ...int) er
 	var payload JsonResponse
 	payload.Error = true
 	payload.Message = err.Error()
+	fmt.Println("status message is", payload.Message)
 
 	return app.writeJSON(w, statusCode, payload)
 }

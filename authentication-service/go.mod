@@ -3,8 +3,10 @@ module github.com/UpLiftL1f3/Spotify-Micro-Services/auth-service
 go 1.20
 
 require (
+	github.com/google/uuid v1.3.1
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1
+	go.mongodb.org/mongo-driver v1.12.1
 	golang.org/x/crypto v0.11.0
 )
 

@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	webPort  = "80"
-	rpcPort  = "5001"
-	mongoURL = "mongodb://mongo:27017"
+	webPort = "80"
+	rpcPort = "5001"
+	// mongoURL = "mongodb://mongo:27017"
 	gRpcPort = "50001"
 )
 
@@ -29,6 +29,8 @@ type Config struct {
 
 func main() {
 	fmt.Println("logger api main func ran")
+
+	data.LoadEnvVariables()
 
 	// connect to mongo
 	mongoClient, err := connectToMongo()
@@ -61,7 +63,9 @@ func main() {
 	go app.rpcListen()
 
 	// Listen to GRPC connection
+	fmt.Println("logger GRPC listen hit")
 	go app.gRPCListen()
+	fmt.Println("logger GRPC listen hit 2")
 
 	// start web server
 	log.Println("Starting service on port", webPort)
@@ -97,19 +101,52 @@ func (app *Config) rpcListen() error {
 }
 
 func connectToMongo() (*mongo.Client, error) {
+	fmt.Println("connect to mongo hit")
+	clientOptions := options.Client().ApplyURI(data.ConnectionString)
 
-	// create the connection options
-	clientOptions := options.Client().ApplyURI(mongoURL)
-	clientOptions.SetAuth(options.Credential{
-		Username: "admin",
-		Password: "password",
-	})
-
-	client, err := mongo.Connect(context.TODO(), clientOptions)
+	// Create a new MongoDB client
+	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
-		log.Println("Error connection: ", err)
+		fmt.Println("MongoDB Client Error:")
+		log.Fatal(err)
 		return nil, err
 	}
 
+	// Connect to MongoDB
+	err = client.Connect(context.Background())
+	if err != nil {
+		fmt.Println("MongoDB connect Client Error")
+		log.Fatal(err)
+		return nil, err
+	}
+
+	// Ping the MongoDB server
+	err = client.Ping(context.Background(), nil)
+	if err != nil {
+		fmt.Println("MongoDB connect Client ping:", err)
+		log.Fatal(err)
+		return nil, err
+	}
+
+	fmt.Println("Connected to MongoDB!")
+
 	return client, nil
 }
+
+// func connectToMongo() (*mongo.Client, error) {
+// 	// Use the SetServerAPIOptions() method to set the Stable API version to 1
+// 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+// 	opts := options.Client().ApplyURI(data.ConnectionString).SetServerAPIOptions(serverAPI)
+// 	// opts.SetAuth(options.Credential{
+// 	// 	Username: "admin",
+// 	// 	Password: "password",
+// 	// })
+
+// 	client, err := mongo.Connect(context.TODO(), opts)
+// 	if err != nil {
+// 		log.Println("Error connection: ", err)
+// 		return nil, err
+// 	}
+
+// 	return client, nil
+// }

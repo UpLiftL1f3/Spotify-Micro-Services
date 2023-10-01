@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"net/http"
@@ -71,8 +70,11 @@ func openDB(dsn string) (*sql.DB, error) {
 }
 
 func connectToDB() *sql.DB {
-	dsn := os.Getenv("DSN")
-	log.Println("looking for the DSN: ", dsn)
+	// Set the desired schema
+	schema := "schema=spotifyClone_schema"
+
+	// Construct the DSN with the schema
+	dsn := fmt.Sprintf("host=postgres port=5432 user=postgres password=password dbname=users sslmode=disable search_path=%s timezone=UTC", schema)
 
 	for {
 		connection, err := openDB(dsn)
