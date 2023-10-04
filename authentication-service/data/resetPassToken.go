@@ -226,13 +226,14 @@ func FindResetPassToken(userID uuid.UUID) (*ResetPasswordDocument, error) {
 		&resetPasswordDocument.ExpiresAt,
 	)
 	fmt.Println("FindEmailVerToken 2")
-	if err != nil {
-		return nil, err
-	}
 
 	// If err is ErrNoRows, it means the row was not found, and you can handle it accordingly
 	if err == sql.ErrNoRows {
 		return &ResetPasswordDocument{}, nil
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	return &resetPasswordDocument, nil
@@ -278,7 +279,11 @@ func FindAndDeleteByID(userID uuid.UUID) error {
 		return err
 	}
 
-	if resetPassDocument == (&ResetPasswordDocument{}) {
+	fmt.Println("HAHAHA", resetPassDocument)
+	fmt.Println("HAHAHA 2", (&ResetPasswordDocument{}))
+	fmt.Println("HAHAHA 3", resetPassDocument == (&ResetPasswordDocument{}))
+
+	if resetPassDocument.ID == uuid.Nil && resetPassDocument.CreatedAt == (time.Time{}) && resetPassDocument.ExpiresAt == (time.Time{}) {
 		// It's empty
 		return nil
 	}

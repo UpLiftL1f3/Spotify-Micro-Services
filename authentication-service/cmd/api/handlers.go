@@ -6,10 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/UpLiftL1f3/Spotify-Micro-Services/auth-service/data"
 	"github.com/UpLiftL1f3/Spotify-Micro-Services/shared/functions"
 	types "github.com/UpLiftL1f3/Spotify-Micro-Services/shared/types"
+	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 // because its a handler it needs a ResponseWriter and Request
@@ -39,9 +42,10 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Authenticate func hit 2")
 	// validate the user against the database
 	user, err := app.Models.User.GetByEmail(requestPayload.Email)
-	fmt.Println("Authenticate func hit 2 user: ", user)
+	// fmt.Println("Authenticate func hit 2 user: ", user)
 	if err != nil {
-		app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
+		app.errorJSON(w, err, http.StatusInternalServerError)
+		// app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
 		return
 	}
 
@@ -49,22 +53,60 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	valid, err := user.PasswordMatches(requestPayload.Password)
 	fmt.Println("Authenticate func hit 3 valid: ", valid)
 	if err != nil || !valid {
+		fmt.Println("Authenticate func hit 4", requestPayload.Password)
 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
 		return
 	}
 
 	fmt.Println("Authenticate func hit 4")
-	// log authentication
-	err = app.logRequest("authentication", fmt.Sprintf("%s logged in", user.Email))
+	// // log authentication
+	// err = app.logRequest("authentication", fmt.Sprintf("%s logged in", user.Email))
+	// if err != nil {
+	// 	app.errorJSON(w, err)
+	// 	return
+	// }
+
+	// for _, existingToken := range user.Token {
+	// 	isExp, err := data.IsTokenExpired(existingToken)
+	// 	if err != nil {
+	// 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// }
+
+	jwt, err := data.GenerateJWT(user.ID.String())
 	if err != nil {
 		app.errorJSON(w, err)
 		return
 	}
 
+	fmt.Println("Authenticate func hit 5 JWT DONE")
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	// Create a copy of the slice
+
+	// Append the new JWT to the copied slice
+	tokenWithJWT := append(user.Token, jwt)
+
+	// Convert []string to pq.StringArray
+	pqTokenCopy := pq.StringArray(tokenWithJWT)
+
+	fmt.Println("Authenticate func hit 6 tokenCopy")
+	updateFields := map[string]interface{}{
+		"token": pqTokenCopy,
+	}
+	if err := user.Update(data.UsersTableName, updateFields, "id", user.ID); err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	fmt.Println("Authenticate func hit 7 updated")
+
 	payload := JsonResponse{
 		Error:   false,
 		Message: fmt.Sprintf("logged in user %s", user.Email),
-		Data:    user,
+		Data:    customAuthenticatedResp(user, tokenWithJWT),
 	}
 
 	app.writeJSON(w, http.StatusAccepted, payload)
@@ -106,41 +148,39 @@ func (app *Config) InsertNewUser(w http.ResponseWriter, r *http.Request) {
 		Message: fmt.Sprintf("logged in as user %s", userBody.Email),
 		Data:    userID,
 	}
-	fmt.Println("Insert HIT END:", err)
-
 	app.writeJSON(w, http.StatusAccepted, payload)
 
 }
 
-func (app *Config) logRequest(name, data string) error {
-	fmt.Println("LOG 1")
-	var entry struct {
-		Name string `json:"name"`
-		Data string `json:"data"`
-	}
+// func (app *Config) logRequest(name, data string) error {
+// 	fmt.Println("LOG 1")
+// 	var entry struct {
+// 		Name string `json:"name"`
+// 		Data string `json:"data"`
+// 	}
 
-	entry.Name = name
-	entry.Data = data
+// 	entry.Name = name
+// 	entry.Data = data
 
-	jsonData, _ := json.MarshalIndent(entry, "", "\t")
-	logServiceURL := "http://logger-service/log"
+// 	jsonData, _ := json.MarshalIndent(entry, "", "\t")
+// 	logServiceURL := "http://logger-service/log"
 
-	fmt.Println("LOG 2")
-	request, err := http.NewRequest("POST", logServiceURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return err
-	}
+// 	fmt.Println("LOG 2")
+// 	request, err := http.NewRequest("POST", logServiceURL, bytes.NewBuffer(jsonData))
+// 	if err != nil {
+// 		return err
+// 	}
 
-	fmt.Println("LOG 3")
-	client := &http.Client{}
-	_, err = client.Do(request)
-	if err != nil {
-		return err
-	}
+// 	fmt.Println("LOG 3")
+// 	client := &http.Client{}
+// 	_, err = client.Do(request)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	fmt.Println("LOG 4")
-	return nil
-}
+// 	fmt.Println("LOG 4")
+// 	return nil
+// }
 
 func (app *Config) sendEmailWithString(w http.ResponseWriter, email string, str string) (error, int) {
 	fmt.Println("Email 1")
@@ -417,6 +457,53 @@ func (app *Config) ResetUserPassword(w http.ResponseWriter, r *http.Request) {
 	payload := JsonResponse{
 		Error:   false,
 		Message: "password reset!",
+	}
+
+	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) isAuthorized(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("IsAuthorized hit")
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	token := strings.Split(authHeader, "Bearer ")[1]
+
+	jwtPayload, err := data.ValidateJWTToken(token)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	id := jwtPayload.UserID
+	userID, err := uuid.Parse(id)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	fmt.Println("is HIT 1")
+	tokenArray := pq.StringArray{token}
+	fields := map[string]interface{}{
+		"id":    userID,
+		"token": tokenArray,
+		// Add more fields as needed
+	}
+
+	fmt.Println("is HIT 2")
+	user, err := app.Models.User.FindOne(fields)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	fmt.Println("is HIT 3")
+
+	payload := JsonResponse{
+		Error:   false,
+		Message: "AUTHORIZED IS OK",
+		Data:    user,
 	}
 
 	app.writeJSON(w, http.StatusAccepted, payload)

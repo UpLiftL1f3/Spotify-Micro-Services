@@ -19,7 +19,7 @@ import (
 
 type RequestPayload struct {
 	Action string      `json:"action"` //? what do you want to do
-	Auth   any         `json:"auth,omitempty"`
+	Auth   AuthPayload `json:"auth,omitempty"`
 	Log    LogPayload  `json:"log,omitempty"`
 	Mail   MailPayload `json:"mail,omitempty"`
 }
@@ -76,7 +76,7 @@ func (app *Config) HandelSubmission(w http.ResponseWriter, r *http.Request) {
 
 	switch requestPayload.Action {
 	case "auth":
-		app.Register(w, requestPayload.Auth)
+		app.authenticate(w, requestPayload.Auth)
 
 	case "log":
 		app.LogEventViaRPC(w, requestPayload.Log)
@@ -119,7 +119,7 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 	if response.StatusCode == http.StatusUnauthorized {
 		app.errorJSON(w, errors.New("invalid credentials"))
 		return
-	} else if response.StatusCode != http.StatusAccepted {
+	} else if response.StatusCode != http.StatusAccepted && response.StatusCode != http.StatusOK {
 		fmt.Printf("print the resp %#v", response)
 		fmt.Printf("print the resp %#v", response.StatusCode)
 		app.errorJSON(w, errors.New("error calling auth service"))

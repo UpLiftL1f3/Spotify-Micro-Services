@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 )
 
@@ -19,6 +20,8 @@ func (app *Config) routes() http.Handler {
 	mux.HandleFunc("/requestPasswordReset", app.generateResetPasswordViaEmail)
 	mux.HandleFunc("/validatePasswordReset", app.validateResetPassToken)
 	mux.HandleFunc("/resetPassword", app.ResetUserPassword)
+	mux.HandleFunc("/isAuthorized", app.isAuthorized)
+	mux.Handle("/isPrivate", JwtMiddleware(privateHandler))
 
 	// Create a CORS middleware instance
 	corsMiddleware := func(handler http.Handler) http.Handler {
@@ -41,3 +44,9 @@ func (app *Config) routes() http.Handler {
 
 	return handler
 }
+
+func PrivateHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "This is a private route")
+}
+
+var privateHandler http.Handler = http.HandlerFunc(PrivateHandler)

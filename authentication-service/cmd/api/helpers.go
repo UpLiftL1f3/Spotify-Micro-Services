@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+
+	"github.com/UpLiftL1f3/Spotify-Micro-Services/auth-service/data"
 )
 
 type JsonResponse struct {
@@ -72,4 +75,45 @@ func (app *Config) errorJSON(w http.ResponseWriter, err error, status ...int) er
 	fmt.Println("status message is", payload.Message)
 
 	return app.writeJSON(w, statusCode, payload)
+}
+
+func customAuthenticatedResp(user *data.User, token []string) interface{} {
+	resp := map[string]any{
+		"active":     user.Active,
+		"id":         user.ID,
+		"email":      user.Email,
+		"firstName":  user.FirstName,
+		"verified":   user.Verified,
+		"created_at": user.CreatedAt,
+		"updated_at": user.UpdatedAt,
+		"token":      token,
+	}
+
+	return resp
+}
+
+func JwtMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get the Authorization header
+		authHeader := r.Header.Get("Authorization")
+
+		// Check if the Authorization header is present
+		if authHeader == "" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Extract the token from the header (assuming it's a Bearer token)
+		token := strings.Split(authHeader, "Bearer ")[1]
+
+		// Perform JWT validation here (use your own validation function)
+		_, err := data.ValidateJWTToken(token)
+		if err != nil {
+			app.errorJSON(w, errors.New("Unauthorized"), http.StatusUnauthorized)
+			return
+		}
+
+		// If the token is valid, call the next handler
+		next.ServeHTTP(w, r)
+	})
 }

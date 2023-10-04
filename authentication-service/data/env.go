@@ -7,6 +7,7 @@ var (
 	UsersTableName             string
 	ResetPasswordTableName     string
 	ResetPasswordLink          string
+	JWT_Secret                 string
 )
 
 func LoadEnvVariables() {
@@ -21,5 +22,6 @@ func LoadEnvVariables() {
 	EmailVerificationTableName = os.Getenv("Email_Verification_Table_Name")
 	ResetPasswordTableName = os.Getenv("Reset_Password_Tokens")
 	ResetPasswordLink = os.Getenv("ResetPasswordLink")
+	JWT_Secret = os.Getenv("JWT_Secret")
 
 }

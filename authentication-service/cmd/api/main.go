@@ -27,6 +27,8 @@ type Config struct {
 	Models data.Models
 }
 
+var app Config
+
 func main() {
 
 	log.Println("Starting authentication service")
@@ -40,7 +42,7 @@ func main() {
 	}
 
 	//! Connect Config
-	app := Config{
+	app = Config{
 		DB:     conn,
 		Models: data.New(conn),
 	}
