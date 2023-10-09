@@ -30,8 +30,10 @@ type RPCPayload struct {
 }
 
 type AuthPayload struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
 }
 
 type LogPayload struct {
@@ -75,6 +77,8 @@ func (app *Config) HandelSubmission(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("FIRST HIT")
 
 	switch requestPayload.Action {
+	case "new":
+		app.register(w, requestPayload.Auth)
 	case "auth":
 		app.authenticate(w, requestPayload.Auth)
 
@@ -149,7 +153,8 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 	app.writeJSON(w, http.StatusAccepted, payload)
 }
 
-func (app *Config) Register(w http.ResponseWriter, a any) {
+func (app *Config) register(w http.ResponseWriter, a any) {
+	fmt.Println("Register HIT")
 	// create some JSON we'll send to the microservice
 	jsonData, _ := json.MarshalIndent(a, "", "\t")
 	// fmt.Printf("FIRST auth HIT %s", jsonData)

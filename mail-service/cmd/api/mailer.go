@@ -103,7 +103,7 @@ func (m *Mail) SendSMTPMessage(msg Message) error {
 func (m *Mail) buildHTMLMessage(msg Message) (string, error) {
 	templateToRender := "./templates/mail.html.gohtml"
 
-	log.Println("hit build HTML message")
+	// log.Println("hit build HTML message")
 
 	t, err := template.New("email-html").ParseFiles(templateToRender)
 	if err != nil {
@@ -111,20 +111,20 @@ func (m *Mail) buildHTMLMessage(msg Message) (string, error) {
 	}
 
 	var tmpl bytes.Buffer
-	log.Println("hit build HTML message Execute")
+	// log.Println("hit build HTML message Execute")
 	if err = t.ExecuteTemplate(&tmpl, "body", msg.DataMap); err != nil {
 		return "", err
 	}
 
 	formattedMsg := tmpl.String()
-	log.Println("hit build HTML message tmpl.string()")
+	// log.Println("hit build HTML message tmpl.string()")
 
 	formattedMsg, err = m.inlineCSS(formattedMsg)
 	if err != nil {
 		return "", err
 	}
 
-	log.Println("hit Final return of build HTML message")
+	// log.Println("hit Final return of build HTML message")
 
 	return formattedMsg, nil
 }

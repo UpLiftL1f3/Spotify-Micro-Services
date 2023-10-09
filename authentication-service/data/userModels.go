@@ -46,6 +46,7 @@ type Avatar struct {
 type CreateUserRequest struct {
 	Email     string `json:"email"`
 	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
 	Password  string `json:"password"`
 }
 
@@ -74,6 +75,9 @@ func (c *CreateUserRequest) Validate() error {
 	}
 	if c.FirstName == "" {
 		return errors.New("first name is required")
+	}
+	if c.LastName == "" {
+		return errors.New("last name is required")
 	}
 	if c.Password == "" {
 		return errors.New("password is required")
@@ -359,6 +363,7 @@ func (c *CreateUserRequest) Insert(tableName string) (uuid.UUID, error) {
 	fields := map[string]interface{}{
 		"email":      c.Email,
 		"first_name": c.FirstName,
+		"last_name":  c.LastName,
 		"password":   hashedPassword,
 		// Add more fields as needed
 	}
@@ -371,7 +376,7 @@ func (c *CreateUserRequest) Insert(tableName string) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 
-	fmt.Println("INSERT HIT THE END NIL AS ERROR")
+	fmt.Println("INSERT HIT THE END NIL AS ERROR", fields)
 	return newID, nil
 }
 

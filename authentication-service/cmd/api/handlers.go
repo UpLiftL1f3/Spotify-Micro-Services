@@ -183,7 +183,8 @@ func (app *Config) InsertNewUser(w http.ResponseWriter, r *http.Request) {
 // }
 
 func (app *Config) sendEmailWithString(w http.ResponseWriter, email string, str string) (error, int) {
-	fmt.Println("Email 1")
+	fmt.Println("Email 1", email)
+	fmt.Println("Email 1 str", str)
 	var mailPayload types.MailMessage
 	mailPayload.To = email
 	mailPayload.From = "spotifyClone@gmail.com"
@@ -214,6 +215,7 @@ func (app *Config) sendEmailWithString(w http.ResponseWriter, email string, str 
 	// create a variable we'll read response.body into
 	var jsonFromService JsonResponse
 
+	fmt.Println("Mail 3.5")
 	// decode json from the auth service
 	_ = json.NewDecoder(response.Body).Decode(&jsonFromService)
 	if jsonFromService.Error {
