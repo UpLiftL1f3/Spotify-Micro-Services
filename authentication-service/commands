@@ -1,0 +1,3 @@
+ ONCE YOURE READY TO GENERATE THE PROTO FILE (in the terminal of the folder that holds the proto file): protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative auths.proto
+
+ THEN GO TO THE MAIN FOLDER: go get google.golang.org/grpc

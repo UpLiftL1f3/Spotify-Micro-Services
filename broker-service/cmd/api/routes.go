@@ -35,6 +35,7 @@ func (app *Config) routes() http.Handler {
 	// Add your routes to the mux
 	mux.HandleFunc("/", app.Broker)
 	mux.HandleFunc("/log-grpc", app.LogViaGRPC)
+	// mux.HandleFunc("/auth-grpc", app.AuthVerifyEmail)
 	// mux.Handle("/log-grpc", runFunc(app.LogViaGRPC))
 	mux.HandleFunc("/handle", app.HandelSubmission)
 

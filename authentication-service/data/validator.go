@@ -7,23 +7,24 @@ import (
 )
 
 func CreateNewUserValidator(u *CreateUserRequest) error {
-	err := FirstNameValidator(strings.TrimSpace(u.FirstName))
-	if err != nil {
+	if err := FirstNameValidator(strings.TrimSpace(u.FirstName)); err != nil {
+		return err
+	}
+	if err := LastNameValidator(strings.TrimSpace(u.LastName)); err != nil {
 		return err
 	}
 
-	err = EmailValidator(u.Email)
-	if err != nil {
+	if err := EmailValidator(u.Email); err != nil {
 		return err
 	}
 
-	err = PasswordValidator(strings.TrimSpace(u.Password))
-	if err != nil {
+	if err := PasswordValidator(strings.TrimSpace(u.Password)); err != nil {
 		return err
 	}
 
 	return nil
 }
+
 func CreateUserValidator(u *User) error {
 	err := FirstNameValidator(strings.TrimSpace(u.FirstName))
 	if err != nil {
@@ -53,6 +54,21 @@ func FirstNameValidator(firstName string) error {
 	}
 
 	if len(firstName) > 20 {
+		return fmt.Errorf("name is too long! 20 characters is the max")
+	}
+
+	return nil
+}
+func LastNameValidator(lastName string) error {
+	if lastName == "" {
+		return fmt.Errorf("name is missing")
+	}
+
+	if len(lastName) < 2 {
+		return fmt.Errorf("name has to be at least 2 characters")
+	}
+
+	if len(lastName) > 100 {
 		return fmt.Errorf("name is too long! 20 characters is the max")
 	}
 

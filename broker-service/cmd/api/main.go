@@ -32,8 +32,12 @@ func main() {
 		Rabbit: rabbitConn,
 	}
 
-	fmt.Printf("Starting broker service on port %s\n", webPort)
+	//! GRPC
+	// if err := grpc.Listen(); err != nil {
+	// 	log.Panic(err)
+	// }
 
+	fmt.Printf("Starting broker service on port %s\n", webPort)
 	// define http server
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", webPort),

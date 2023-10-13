@@ -27,7 +27,7 @@ func (app *Config) routes() http.Handler {
 	corsMiddleware := func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Set CORS headers
-			w.Header().Set("Access-Control-Allow-Origin", "https://*, http://*")
+			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
 			w.Header().Set("Access-Control-Expose-Headers", "Link")

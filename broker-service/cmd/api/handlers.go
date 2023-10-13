@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/rpc"
+	"strings"
 	"time"
 
 	"github.com/UpLiftL1f3/Spotify-Micro-Services/broker-service/event"
@@ -19,9 +20,10 @@ import (
 
 type RequestPayload struct {
 	Action string      `json:"action"` //? what do you want to do
-	Auth   AuthPayload `json:"auth,omitempty"`
 	Log    LogPayload  `json:"log,omitempty"`
 	Mail   MailPayload `json:"mail,omitempty"`
+	Auth   AuthPayload `json:"Auth,omitempty"`
+	// Route  string     `json:"route"`
 }
 
 type RPCPayload struct {
@@ -29,11 +31,18 @@ type RPCPayload struct {
 	Data string
 }
 
+type RouterRequest struct {
+	Route       string      `json:"route"`
+	AuthPayload AuthPayload `json:"authPayload.omitempty"`
+}
+
 type AuthPayload struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
+	UserID    string `json:"userID,omitempty"`
+	FirstName string `json:"firstName,omitempty"`
+	LastName  string `json:"lastName,omitempty"`
+	Email     string `json:"email,omitempty"`
+	Password  string `json:"password,omitempty"`
+	Token     string `json:"token,omitempty"`
 }
 
 type LogPayload struct {
@@ -67,31 +76,44 @@ func (app *Config) HandelSubmission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var requestPayload RequestPayload
+	var reqPayload RequestPayload
+	fmt.Printf("Received payload: %+v\n", reqPayload)
 
-	if err := app.readJSON(w, r, &requestPayload); err != nil {
+	if err := app.readJSON(w, r, &reqPayload); err != nil {
 		app.errorJSON(w, err)
 		return
 	}
 
 	fmt.Println("FIRST HIT")
-
-	switch requestPayload.Action {
-	case "new":
-		app.register(w, requestPayload.Auth)
+	desiredRoute := strings.Split(reqPayload.Action, "/")
+	fmt.Println("FIRST HIT pt 2", desiredRoute)
+	fmt.Println("FIRST HIT pt 3", desiredRoute[0])
+	switch desiredRoute[0] {
+	// case "newUser":
+	// 	app.register(w, reqPayload.Auth)
 	case "auth":
-		app.authenticate(w, requestPayload.Auth)
-
-	case "log":
-		app.LogEventViaRPC(w, requestPayload.Log)
-
-	case "mail":
-		app.sendMail(w, requestPayload.Mail)
-
+		app.authRouter(w, reqPayload)
+	case "authGRPC":
+		app.AuthGRPCRouter(w, reqPayload)
+	// case "authGRPC":
+	// 	app.AuthVerifyEmail(w, reqPayload.Auth)
 	default:
 		app.errorJSON(w, errors.New("unknown Action"))
 	}
 
+}
+func (app *Config) authRouter(w http.ResponseWriter, r RequestPayload) {
+	desiredRoute := strings.Split(r.Action, "/")
+	switch desiredRoute[1] {
+	case "newUser":
+		fmt.Printf("Received payload: %+v\n", r)
+		app.register(w, r.Auth)
+	case "authenticate":
+		app.authenticate(w, r.Auth)
+
+	default:
+		app.errorJSON(w, errors.New("unknown Action"))
+	}
 }
 
 func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
@@ -159,11 +181,13 @@ func (app *Config) register(w http.ResponseWriter, a any) {
 	jsonData, _ := json.MarshalIndent(a, "", "\t")
 	// fmt.Printf("FIRST auth HIT %s", jsonData)
 
+	fmt.Println("Register HIT 2", jsonData)
 	request, err := http.NewRequest("POST", "http://authentication-service/addUser", bytes.NewBuffer(jsonData))
 	if err != nil {
 		app.errorJSON(w, err)
 		return
 	}
+	fmt.Println("Register HIT 3", request)
 
 	client := &http.Client{}
 	response, err := client.Do(request)
@@ -172,6 +196,7 @@ func (app *Config) register(w http.ResponseWriter, a any) {
 		return
 	}
 	defer response.Body.Close()
+	fmt.Println("Register HIT 4")
 
 	// create a variable we'll read response.body into
 	var jsonFromService JsonResponse
@@ -179,6 +204,7 @@ func (app *Config) register(w http.ResponseWriter, a any) {
 	// decode json from the auth service
 	_ = json.NewDecoder(response.Body).Decode(&jsonFromService)
 
+	fmt.Println("Register HIT 5")
 	if jsonFromService.Error {
 		app.errorJSON(w, errors.New(jsonFromService.Message), http.StatusUnauthorized)
 		return
@@ -198,6 +224,7 @@ func (app *Config) register(w http.ResponseWriter, a any) {
 	payload.Message = jsonFromService.Message
 	payload.Data = jsonFromService.Data
 
+	fmt.Println("Register HIT 6")
 	app.writeJSON(w, http.StatusAccepted, payload)
 }
 

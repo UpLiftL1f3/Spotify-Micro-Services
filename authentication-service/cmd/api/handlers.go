@@ -21,7 +21,7 @@ func (app *Config) Ping(w http.ResponseWriter, r *http.Request) {
 	// receive payload
 	payload := JsonResponse{
 		Error:   false,
-		Message: "PONG",
+		Message: "PONG Auth",
 	}
 	_ = app.writeJSON(w, http.StatusOK, payload)
 }
@@ -113,12 +113,15 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Config) InsertNewUser(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("InsertNewUser HIT")
+
 	var userBody data.CreateUserRequest
 	if err := functions.ReadAndCustomValidate(w, r, &userBody, userBody.Validate); err != nil {
 		app.errorJSON(w, err, http.StatusBadRequest)
 		return
 	}
 
+	fmt.Println("INSERT USER HIT")
 	// validate the user against the database
 	userID, err := userBody.Insert(data.UsersTableName)
 	if err != nil {
@@ -127,6 +130,7 @@ func (app *Config) InsertNewUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("Generate email token HIT")
 	// Generate the Email Token
 	token, err := data.GenerateTokenAndCreateEVDocument(userID)
 	if err != nil {
@@ -135,6 +139,7 @@ func (app *Config) InsertNewUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("email token sent HIT")
 	// Send Email Verification
 	mailErr, status := app.sendEmailWithString(w, userBody.Email, token)
 	fmt.Println("MAILER ERROR: ", mailErr)
