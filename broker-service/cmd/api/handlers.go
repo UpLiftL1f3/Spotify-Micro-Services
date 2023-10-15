@@ -111,10 +111,72 @@ func (app *Config) authRouter(w http.ResponseWriter, r RequestPayload) {
 		app.register(w, r.Auth)
 	case "authenticate":
 		app.authenticate(w, r.Auth)
+	case "reverifyEmail":
+		app.authHandler(w, r.Auth, desiredRoute[1])
 
 	default:
 		app.errorJSON(w, errors.New("unknown Action"))
 	}
+}
+
+func (app *Config) authHandler(w http.ResponseWriter, a AuthPayload, action string) {
+	// create some JSON we'll send to the microservice
+	jsonData, _ := json.MarshalIndent(a, "", "\t")
+	fmt.Printf("FIRST auth HIT %s", jsonData)
+
+	// call the service (equivalent of a http request)
+	//! "authentication-service" is what we called the auth micro-service in the docker-compose.yml file
+	//? the url set in the authentication-service routes.go = "/authenticate"
+	// use bytes.NewBuffer bc the jsonData needs to be passed in, in a specific format
+	route := "http://authentication-service/" + action
+	request, err := http.NewRequest("POST", route, bytes.NewBuffer(jsonData))
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	defer response.Body.Close()
+	fmt.Println("SECOND auth HIT")
+	fmt.Println(response.StatusCode)
+
+	// make sure we get back the correct status code
+	if response.StatusCode == http.StatusUnauthorized {
+		app.errorJSON(w, errors.New("invalid credentials"))
+		return
+	} else if response.StatusCode != http.StatusAccepted && response.StatusCode != http.StatusOK {
+		fmt.Printf("print the resp %#v", response)
+		fmt.Printf("print the resp %#v", response.StatusCode)
+		app.errorJSON(w, errors.New("error calling auth service"))
+		return
+	}
+
+	// create a variable we'll read response.body into
+	var jsonFromService JsonResponse
+
+	// decode json from the auth service
+	err = json.NewDecoder(response.Body).Decode(&jsonFromService)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	if jsonFromService.Error {
+		app.errorJSON(w, err, http.StatusUnauthorized)
+		return
+	}
+
+	var payload JsonResponse
+	payload.Error = false
+	payload.Message = action
+	payload.Data = jsonFromService.Data
+
+	app.writeJSON(w, http.StatusAccepted, payload)
 }
 
 func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
