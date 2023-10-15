@@ -15,16 +15,21 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// type AuthServiceServer struct {
-// 	pb.UnimplementedAuthServiceServer
-// }
+//	type AuthServiceServer struct {
+//		pb.UnimplementedAuthServiceServer
+//	}
+const (
+	authTarget = "authentication-service:50002"
+)
 
 func (app *Config) AuthGRPCRouter(w http.ResponseWriter, r RequestPayload) {
 	desiredRoute := strings.Split(r.Action, "/")
 	switch desiredRoute[1] {
 	case "verifyEmail":
-		fmt.Printf("Received payload: %+v\n", r)
 		app.AuthVerifyEmail(w, r.Auth)
+	case "signIn":
+		fmt.Printf("sign in Received payload: %+v\n", r)
+		app.SignIn(w, r.Auth)
 
 	default:
 		app.errorJSON(w, errors.New("unknown Action"))
@@ -32,23 +37,9 @@ func (app *Config) AuthGRPCRouter(w http.ResponseWriter, r RequestPayload) {
 }
 
 func (app *Config) AuthVerifyEmail(w http.ResponseWriter, r AuthPayload) {
-	// func (s *AuthServiceServer) AuthVerifyEmail(ctx context.Context, req *pb.VerifyEmailRequest) (*pb.VerifyEmailResponse, error) {
-	// Handle OPTIONS requests for CORS preflight
-	// if r.Method == http.MethodOptions {
-	// 	w.WriteHeader(http.StatusOK)
-	// 	return
-	// }
-
 	fmt.Println("LOG EVENT VIA GRPC HIT")
-	// var requestPayload pb.VerifyEmailRequest
-	// err := app.readJSON(w, r, &requestPayload)
-	// if err != nil {
-	// 	app.errorJSON(w, err)
-	// 	return
-	// }
 
-	fmt.Println("LOG EVENT VIA GRPC HIT FUCKKKK")
-	conn, err := grpc.Dial("authentication-service:50002", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.Dial(authTarget, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		log.Println("gRPC call failed:", err)
 		app.errorJSON(w, err)
@@ -77,6 +68,44 @@ func (app *Config) AuthVerifyEmail(w http.ResponseWriter, r AuthPayload) {
 	payload := JsonResponse{
 		Error:   false,
 		Message: "verified email via GRPC",
+	}
+
+	_ = app.writeJSON(w, http.StatusOK, payload)
+}
+
+func (app *Config) SignIn(w http.ResponseWriter, r AuthPayload) {
+	fmt.Println("LOG EVENT VIA GRPC HIT")
+
+	conn, err := grpc.Dial(authTarget, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		log.Println("gRPC call failed:", err)
+		app.errorJSON(w, err)
+		return
+	}
+	defer conn.Close()
+
+	fmt.Println("LOG EVENT VIA GRPC HIT pt 2")
+	authClient := pb.NewAuthServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	fmt.Println("LOG EVENT VIA GRPC HIT pt 3")
+	resp, err := authClient.SignIn(ctx, &pb.SignInRequest{
+		Email:    r.Email,
+		Password: r.Password,
+	})
+	fmt.Println("LOG EVENT VIA GRPC HIT pt 4")
+	if err != nil {
+		log.Println("gRPC call failed pt2:", err)
+		app.errorJSON(w, err)
+		return
+	}
+	fmt.Println("LOG EVENT VIA GRPC HIT pt 5")
+
+	payload := JsonResponse{
+		Error:   false,
+		Message: "user successfully Signed In",
+		Data:    resp,
 	}
 
 	_ = app.writeJSON(w, http.StatusOK, payload)

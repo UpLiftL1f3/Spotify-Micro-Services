@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package authproto;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "/authproto";
 
 message VerifyEmailRequest {
@@ -12,7 +14,24 @@ message VerifyEmailRequest {
 message VerifyEmailResponse {
     bool isVerified = 1;
 }
+message SignInRequest {
+    string email = 1;
+    string password = 2;
+}
+
+message SignInResponse {
+   int64  active =1;
+   string id = 2;
+   string email = 3;
+   string firstName = 4;
+   string lastName = 5;
+   bool verified  =  6;
+   google.protobuf.Timestamp created_at = 7;
+   google.protobuf.Timestamp updated_at = 8;
+   repeated string token = 9;
+}
 
 service AuthService {
     rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
+    rpc SignIn(SignInRequest) returns (SignInResponse);
 }

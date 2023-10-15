@@ -104,6 +104,7 @@ func (app *Config) HandelSubmission(w http.ResponseWriter, r *http.Request) {
 }
 func (app *Config) authRouter(w http.ResponseWriter, r RequestPayload) {
 	desiredRoute := strings.Split(r.Action, "/")
+	fmt.Println("FIRST HIT pt 3", desiredRoute[1])
 	switch desiredRoute[1] {
 	case "newUser":
 		fmt.Printf("Received payload: %+v\n", r)
