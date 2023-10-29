@@ -99,6 +99,7 @@ func (a *authServiceServer) SignIn(ctx context.Context, req *pb.SignInRequest) (
 	fmt.Println("Authenticate func hit 4")
 	if len(user.Token) > 0 {
 		isAuthorized, err := app.isUserAuthorized(user.Token[0])
+		fmt.Println("Authenticate func hit 5", isAuthorized)
 		if err != nil || !isAuthorized {
 			return generateSignInResponse(&data.User{}, []string{}, err)
 		}
@@ -128,7 +129,6 @@ func (a *authServiceServer) SignIn(ctx context.Context, req *pb.SignInRequest) (
 	return generateSignInResponse(user, tokenWithJWT, err)
 
 }
-
 func generateSignInResponse(user *data.User, token []string, err error) (*pb.SignInResponse, error) {
 	if user == nil {
 		return &pb.SignInResponse{}, err
@@ -143,10 +143,75 @@ func generateSignInResponse(user *data.User, token []string, err error) (*pb.Sig
 		Id:        user.ID.String(),
 		Email:     user.Email,
 		FirstName: user.FirstName,
+		LastName:  *user.LastName,
 		Verified:  user.Verified,
 		CreatedAt: timestamppb.New(user.CreatedAt),
 		UpdatedAt: timestamppb.New(user.UpdatedAt),
 		Token:     token,
+	}
+
+	if user.Avatar != nil {
+		response.Avatar = &pb.Avatar{
+			Url:      user.Avatar.Url,
+			PublicID: user.Avatar.PublicID,
+		}
+	}
+
+	// Check if LastName is not nil before dereferencing
+	if user.LastName != nil {
+		response.LastName = *user.LastName
+	}
+
+	return response, nil
+}
+func (a *authServiceServer) IsAuthorized(ctx context.Context, req *pb.IsAuthorizedRequest) (*pb.SignInResponse, error) {
+	fmt.Println("GRPC Authenticate func hit 1", req.Token)
+
+	claims, err := app.isAuthorizedAndClaims(req.Token)
+	fmt.Println("claims: ", claims)
+
+	if err != nil {
+		return generateIsAuthorizedResponse(nil, err)
+	}
+
+	fmt.Println("Claims:", claims)
+
+	userID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return generateIsAuthorizedResponse(nil, err)
+	}
+
+	// validate the user against the database
+	user, err := app.Models.User.GetByID(userID)
+	if err != nil {
+		return generateIsAuthorizedResponse(nil, err)
+	}
+
+	return generateIsAuthorizedResponse(user, err)
+
+}
+func generateIsAuthorizedResponse(user *data.User, err error) (*pb.SignInResponse, error) {
+	if user == nil {
+		return &pb.SignInResponse{}, err
+	}
+
+	response := &pb.SignInResponse{
+		Active:    int64(user.Active),
+		Id:        user.ID.String(),
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  *user.LastName,
+		Verified:  user.Verified,
+		CreatedAt: timestamppb.New(user.CreatedAt),
+		UpdatedAt: timestamppb.New(user.UpdatedAt),
+		Token:     user.Token,
+	}
+
+	if user.Avatar != nil {
+		response.Avatar = &pb.Avatar{
+			Url:      user.Avatar.Url,
+			PublicID: user.Avatar.PublicID,
+		}
 	}
 
 	// Check if LastName is not nil before dereferencing

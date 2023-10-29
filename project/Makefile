@@ -5,6 +5,9 @@ LOGGER_BINARY=loggerServiceApp
 AUTH_BINARY=authApp	
 MAIL_BINARY=mailerApp
 LISTENER_BINARY=listenerApp
+MONOLITHIC_BINART=monolithicApp
+
+## MONO APP
 
 ## up: starts all containers in the background without forcing build
 up: 
@@ -20,6 +23,13 @@ up_build: build_broker build_auth build_logger
 	docker-compose up --build -d
 	@echo "Docker images built and started!"
 
+up_monolithic: build_broker build_auth build_logger
+	@echo "Stopping docker images (if running...)"
+	docker-compose down
+	@echo "Building (when required) and starting docker images..."
+	docker-compose up --build -d
+	@echo "Docker images built and started!"
+
 ## down: stop docker compose
 down:
 	@echo "Stopping docker compose..."
@@ -27,6 +37,21 @@ down:
 	@echo "Done!"
 
 # up_build: build_broker build_auth  
+## build_broker: builds the broker binary as a linux executable
+build_monolithic:
+ifeq ($(wildcard ${MONOLITHIC_BINART}),)
+	@echo "Building new ${MONOLITHIC_BINART}..."
+	cd ../monolithic-service && env GOOS=linux CGO_ENABLED=0 go build -o ${MONOLITHIC_BINART} ./cmd/api
+else
+	@echo "Deleting existing ${MONOLITHIC_BINART} file..."
+	cd ../monolithic-service && rm -f ${MONOLITHIC_BINART}
+	@echo "Building new ${MONOLITHIC_BINART}..."
+	go build -o ${MONOLITHIC_BINART} ./cmd/api
+	@echo "building monolithic binary..."
+	cd ../monolithic-service && env GOOS=linux CGO_ENABLED=0 go build -o ${MONOLITHIC_BINART} ./cmd/api
+	@echo "Done!"
+endif
+
 ## build_broker: builds the broker binary as a linux executable
 build_broker:
 ifeq ($(wildcard ${AUTH_BINARY}),)

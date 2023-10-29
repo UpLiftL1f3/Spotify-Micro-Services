@@ -18,20 +18,35 @@ message SignInRequest {
     string email = 1;
     string password = 2;
 }
+message IsAuthorizedRequest {
+    string token = 1;
+    bool shouldExtract =2;
+}
+
+
+message Avatar {
+  string Url = 1;
+  string PublicID = 2;
+}
 
 message SignInResponse {
-   int64  active =1;
-   string id = 2;
-   string email = 3;
-   string firstName = 4;
-   string lastName = 5;
-   bool verified  =  6;
-   google.protobuf.Timestamp created_at = 7;
-   google.protobuf.Timestamp updated_at = 8;
-   repeated string token = 9;
+  int64 active = 1;
+  string id = 2;
+  string email = 3;
+  string firstName = 4;
+  string lastName = 5;
+  bool verified = 6;
+  Avatar avatar = 7;
+  repeated string favoritesAudio = 8; // Assuming UUIDs are represented as strings
+  repeated string followers = 9;     // Assuming UUIDs are represented as strings
+  repeated string following = 10;     // Assuming UUIDs are represented as strings
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  repeated string token = 13;
 }
 
 service AuthService {
     rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
     rpc SignIn(SignInRequest) returns (SignInResponse);
+    rpc IsAuthorized(IsAuthorizedRequest) returns (SignInResponse);
 }

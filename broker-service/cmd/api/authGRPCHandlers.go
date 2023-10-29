@@ -28,8 +28,11 @@ func (app *Config) AuthGRPCRouter(w http.ResponseWriter, r RequestPayload) {
 	case "verifyEmail":
 		app.AuthVerifyEmail(w, r.Auth)
 	case "signIn":
-		fmt.Printf("sign in Received payload: %+v\n", r)
+		// fmt.Printf("sign in Received payload: %+v\n", r)
 		app.SignIn(w, r.Auth)
+	case "isAuthorized":
+		fmt.Printf("sign in Received payload: %+v\n", r)
+		app.IsAuthorized(w, r.Auth)
 
 	default:
 		app.errorJSON(w, errors.New("unknown Action"))
@@ -105,6 +108,43 @@ func (app *Config) SignIn(w http.ResponseWriter, r AuthPayload) {
 	payload := JsonResponse{
 		Error:   false,
 		Message: "user successfully Signed In",
+		Data:    resp,
+	}
+
+	_ = app.writeJSON(w, http.StatusOK, payload)
+}
+
+func (app *Config) IsAuthorized(w http.ResponseWriter, r AuthPayload) {
+	fmt.Println("IsAuthorized EVENT VIA GRPC HIT")
+
+	conn, err := grpc.Dial(authTarget, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		log.Println("gRPC call failed:", err)
+		app.errorJSON(w, err)
+		return
+	}
+	defer conn.Close()
+
+	fmt.Println("IsAuthorized EVENT VIA GRPC HIT pt 2")
+	authClient := pb.NewAuthServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	fmt.Println("IsAuthorized EVENT VIA GRPC HIT pt 3")
+	resp, err := authClient.IsAuthorized(ctx, &pb.IsAuthorizedRequest{
+		Token: r.Token,
+	})
+	fmt.Println("IsAuthorized EVENT VIA GRPC HIT pt 4")
+	if err != nil {
+		log.Println("gRPC call failed pt2:", err)
+		app.errorJSON(w, err)
+		return
+	}
+	fmt.Println("IsAuthorized EVENT VIA GRPC HIT pt 5")
+
+	payload := JsonResponse{
+		Error:   false,
+		Message: "user successfully Authorized",
 		Data:    resp,
 	}
 

@@ -4,6 +4,8 @@ use ./authentication-service
 
 use ./broker-service
 
+use ./monolithic-service
+
 use ./listener-service
 
 use ./logger-service

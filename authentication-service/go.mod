@@ -7,6 +7,7 @@ replace github.com/UpLiftL1f3/Spotify-Micro-Services/shared => ../shared
 require (
 	github.com/UpLiftL1f3/Spotify-Micro-Services/shared v0.0.0-00010101000000-000000000000
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.3.1
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1

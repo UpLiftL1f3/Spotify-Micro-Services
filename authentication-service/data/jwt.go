@@ -61,3 +61,74 @@ func ValidateJWTToken(tokenString string) (*JWTPayload, error) {
 		return nil, fmt.Errorf("token is not valid")
 	}
 }
+
+func ValidateAndExtractClaims(tokenString string, shouldExtract bool) (jwt.MapClaims, error) {
+	secretKey := []byte(JWT_Secret)
+
+	// Parse the token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return secretKey, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if token.Valid {
+		if shouldExtract {
+			claims, ok := token.Claims.(jwt.MapClaims)
+			if ok {
+				return claims, nil
+			}
+			return nil, fmt.Errorf("unable to extract claims from the token")
+		}
+		return nil, nil
+	}
+
+	return nil, fmt.Errorf("token is not valid")
+}
+
+func ConvertClaims(claims jwt.MapClaims) MyClaims {
+	var userID string
+	if rawUserID, ok := claims["user_id"]; ok {
+		if strUserID, ok := rawUserID.(string); ok {
+			userID = strUserID
+		}
+	}
+
+	standardClaims := jwt.StandardClaims{
+		Issuer:    getStringClaim(claims, "iss"),
+		Subject:   getStringClaim(claims, "sub"),
+		Audience:  getStringClaim(claims, "aud"),
+		ExpiresAt: getInt64Claim(claims, "exp"),
+		NotBefore: getInt64Claim(claims, "nbf"),
+		IssuedAt:  getInt64Claim(claims, "iat"),
+		Id:        getStringClaim(claims, "jti"),
+	}
+
+	return MyClaims{
+		UserID:         userID,
+		StandardClaims: standardClaims,
+	}
+}
+
+func getStringClaim(claims jwt.MapClaims, key string) string {
+	if value, ok := claims[key]; ok {
+		if strValue, ok := value.(string); ok {
+			return strValue
+		}
+	}
+	return ""
+}
+
+func getInt64Claim(claims jwt.MapClaims, key string) int64 {
+	if value, ok := claims[key]; ok {
+		if float64Value, ok := value.(float64); ok {
+			return int64(float64Value)
+		}
+	}
+	return 0
+}
