@@ -7,4 +7,5 @@ type DBModel struct {
 	DB                *sql.DB
 	User              UserModel
 	EmailVerification EmailModel
+	Token             TokenModel
 }

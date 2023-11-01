@@ -5,6 +5,7 @@ import "os"
 var (
 	EmailVerificationTableName string
 	UsersTableName             string
+	TokensTableName            string
 	ResetPasswordTableName     string
 	ResetPasswordLink          string
 	JWT_Secret                 string
@@ -20,6 +21,7 @@ func LoadEnvVariables() {
 
 	// Access environment variables
 	UsersTableName = os.Getenv("Users_Table_Name")
+	TokensTableName = os.Getenv("Tokens_Table_Name")
 	EmailVerificationTableName = os.Getenv("Email_Verification_Table_Name")
 	ResetPasswordTableName = os.Getenv("Reset_Password_Tokens")
 	ResetPasswordLink = os.Getenv("ResetPasswordLink")

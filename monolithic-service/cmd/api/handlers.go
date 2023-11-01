@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/UpLiftL1f3/Spotify-Micro-Services/monolithic-service/internal/models"
 )
@@ -36,7 +37,7 @@ func (app *application) CreateAuthToken(w http.ResponseWriter, r *http.Request) 
 	}
 	fmt.Println("HIT AUTH TOKEN 2", userInput)
 
-	//* GET USER FROM DB
+	//-> GET USER FROM DB
 	user, err := app.DB.User.GetUserByEmail(userInput.Email)
 	if err != nil {
 		app.invalidCredentials(w)
@@ -44,7 +45,7 @@ func (app *application) CreateAuthToken(w http.ResponseWriter, r *http.Request) 
 	}
 	fmt.Println("HIT AUTH TOKEN 3", user)
 
-	//* Validate password
+	//-> Validate password
 	validPassword, err := user.PasswordMatches(userInput.Password)
 	if err != nil {
 		app.invalidCredentials(w)
@@ -57,12 +58,36 @@ func (app *application) CreateAuthToken(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var payload struct {
-		Error   bool   `json:"error"`
-		Message string `json:"message"`
+	fmt.Println("HIT AUTH TOKEN GENERATE")
+	//-> GENERATE Token
+	token, err := models.GenerateToken(user.ID, 24*time.Hour, models.ScopeAuthentication)
+	fmt.Println("HIT AUTH TOKEN GENERATE (TOKEN)", token)
+	if err != nil {
+		app.badRequest(w, r, err)
+		return
 	}
+
+	//-> SAVE TO DATABASE
+	err = app.DB.Token.InsertToken(token, user)
+	if err != nil {
+		app.badRequest(w, r, err)
+		return
+	}
+
+	fmt.Println("HIT AUTH TOKEN GENERATED TOKEN: ", token)
+	//-> SEND RESPONSE
+	var payload struct {
+		Error   bool          `json:"error"`
+		Message string        `json:"message"`
+		Token   *models.Token `json:"token"`
+	}
+
+	//-> Make Token suitable for the Frontend
+	token.Hash = []byte(token.TokenHashToString())
+
 	payload.Error = false
-	payload.Message = "success!"
+	payload.Message = fmt.Sprintf("a token for %s has been created", user.Email)
+	payload.Token = token
 
 	app.WriteJSON(w, http.StatusOK, payload)
 }
@@ -75,7 +100,7 @@ func (app *application) InsertUser(w http.ResponseWriter, r *http.Request) {
 		app.ErrorJSON(w, err)
 		return
 	}
-	fmt.Println("insert user TOKEN 2", createUser)
+	fmt.Println("insert user TOKEN 2", createUser.String())
 
 	//* GET USER FROM DB
 	userID, err := app.DB.User.InsertUser(createUser)

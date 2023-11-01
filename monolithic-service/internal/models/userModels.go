@@ -17,8 +17,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const dbTimeout = time.Second * 3 // three seconds (wow)
-
 type Avatar struct {
 	Url      string
 	PublicID string
@@ -190,13 +188,11 @@ func (u *UserModel) GetByID(userID uuid.UUID) (*User, error) {
 func (u *UserModel) GetUserByEmail(email string) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
-	fmt.Println("101", email)
+
 	query := functions.BuildFindOneQuery(env.UsersTableName, "email")
-	fmt.Println("102", query)
 
 	var user User
 	row := u.DB.QueryRowContext(ctx, query, email)
-	fmt.Println("103")
 
 	var avatarJSON []byte // Create a []byte variable to store the JSON data
 
@@ -224,9 +220,12 @@ func (u *UserModel) GetUserByEmail(email string) (*User, error) {
 	}
 
 	// Unmarshal the JSON data into the *models.Avatar struct
-	err = json.Unmarshal(avatarJSON, &user.Avatar)
-	if err != nil {
-		return nil, err
+	if len(avatarJSON) > 0 {
+		err = json.Unmarshal(avatarJSON, &user.Avatar)
+		if err != nil {
+			fmt.Println("error 2: ", err.Error())
+			return nil, err
+		}
 	}
 
 	return &user, nil
@@ -331,31 +330,20 @@ func (u *UserModel) InsertUser(user User) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("password error")
 	}
 
-	var newID uuid.UUID
-	// stmt, values := functions.BuildInsertQuery(env.UsersTableName, user)
-	stmt := `
-	INSERT INTO spotifyClone_schema.users (
-			email, first_name, last_name, password, verified, avatar, 
-			active_events, followers, following, token, active, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-		RETURNING id
-	`
+	user.Password = hashedPassword
 
-	err = u.DB.QueryRowContext(ctx, stmt,
-		user.Email,
-		strings.TrimSpace(user.FirstName),
-		strings.TrimSpace(user.LastName),
-		hashedPassword,
-		user.Verified,
-		user.Avatar,
-		user.ActiveEvents,
-		user.Followers,
-		user.Following,
-		user.Token,
-		user.Active,
-		time.Now(),
-		time.Now(),
-	).Scan(&newID)
+	var newID uuid.UUID
+	stmt, values := functions.BuildInsertQuery(env.UsersTableName, user.UserToMap())
+	fmt.Printf("INSPECT IT?: %s, %v", stmt, values)
+	// stmt := `
+	// INSERT INTO spotifyClone_schema.users (
+	// 		email, first_name, last_name, password, verified, avatar,
+	// 		active_events, followers, following, token, active, created_at, updated_at
+	// 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	// 	RETURNING id
+	// `
+
+	err = u.DB.QueryRowContext(ctx, stmt, values...).Scan(&newID)
 
 	if err != nil {
 		fmt.Println("Query Row Error: ", err)
@@ -503,6 +491,33 @@ func (u *User) PasswordMatches(plainText string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (u *User) String() string {
+	return fmt.Sprintf("ID: %s, Email: %s, FirstName: %s, LastName: %s, Password: %s, Verified: %v, Avatar: %+v, ActiveEvents: %+v, Followers: %+v, Following: %+v, Token: %+v, Active: %d, CreatedAt: %s, UpdatedAt: %s",
+		u.ID, u.Email, u.FirstName, u.LastName, u.Password, u.Verified, u.Avatar, u.ActiveEvents, u.Followers, u.Following, u.Token, u.Active, u.CreatedAt, u.UpdatedAt)
+}
+
+func (user *User) UserToMap() map[string]interface{} {
+	if len(user.Token) == 0 {
+		user.Token = nil
+	}
+	return map[string]interface{}{
+		"ID":           user.ID,
+		"Email":        user.Email,
+		"FirstName":    user.FirstName,
+		"LastName":     user.LastName,
+		"Password":     user.Password,
+		"Verified":     user.Verified,
+		"Avatar":       user.Avatar,
+		"ActiveEvents": user.ActiveEvents,
+		"Followers":    user.Followers,
+		"Following":    user.Following,
+		"Token":        user.Token,
+		"Active":       user.Active,
+		"CreatedAt":    user.CreatedAt,
+		"UpdatedAt":    user.UpdatedAt,
+	}
 }
 
 //  __    __

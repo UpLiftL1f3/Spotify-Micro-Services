@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const dbTimeout = time.Second * 3 // three seconds (wow)
+
 // Models is the wrapper for all models
 type Models struct {
 	DB DBModel
@@ -16,9 +18,10 @@ type Models struct {
 func NewModels(db *sql.DB) Models {
 	userModel := UserModel{DBModel: &DBModel{DB: db}}
 	emailModel := EmailModel{DBModel: &DBModel{DB: db}}
+	tokenModel := TokenModel{DBModel: &DBModel{DB: db}}
 
 	return Models{
-		DB: DBModel{DB: db, User: userModel, EmailVerification: emailModel},
+		DB: DBModel{DB: db, User: userModel, EmailVerification: emailModel, Token: tokenModel},
 	}
 }
 

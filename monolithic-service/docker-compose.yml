@@ -16,6 +16,7 @@ services:
             DSN: "host=postgres port=5432 user=postgres password=password dbname=users sslmode=disable search_path=schema=spotifyClone_schema timezone=UTC"
             Email_Verification_Table_Name: "spotifyClone_schema.email_verification_tokens"
             Users_Table_Name: "spotifyClone_schema.users"
+            Tokens_Table_Name: "spotifyclone_schema.tokens"
             Reset_Password_Tokens: "spotifyClone_schema.reset_password_tokens"
             ResetPasswordLink: "http://localhost:8081/reset-password"
             JWT_Secret: "41bf71022da2f412622dbd2c83a636afee8772a5fb3c11921ef9ccb2303b6cc40f480f10"
