@@ -24,6 +24,20 @@ type stripePayload struct {
 	LastName      string `json:"last_name"`
 }
 
+type SingInResponse struct {
+	Id        string    `json:"id"`
+	Active    int       `json:"active"`
+	Email     string    `json:"email"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Verified  bool      `json:"verified"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Token     string    `json:"last_four"`
+}
+
+// create sign in auth token
+// -> SIGN IN FUNCTION
 func (app *application) CreateAuthToken(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("HIT AUTH TOKEN")
 	var userInput struct {
@@ -77,21 +91,33 @@ func (app *application) CreateAuthToken(w http.ResponseWriter, r *http.Request) 
 	fmt.Println("HIT AUTH TOKEN GENERATED TOKEN: ", token)
 	//-> SEND RESPONSE
 	var payload struct {
-		Error   bool          `json:"error"`
-		Message string        `json:"message"`
-		Token   *models.Token `json:"token"`
+		Error   bool   `json:"error"`
+		Message string `json:"message"`
+		*SingInResponse
 	}
 
 	//-> Make Token suitable for the Frontend
 	token.Hash = []byte(token.TokenHashToString())
+	var data = &SingInResponse{
+		Id:        user.ID.String(),
+		Active:    user.Active,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Verified:  user.Verified,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Token:     string(token.Hash),
+	}
 
 	payload.Error = false
 	payload.Message = fmt.Sprintf("a token for %s has been created", user.Email)
-	payload.Token = token
+	payload.SingInResponse = data
 
 	app.WriteJSON(w, http.StatusOK, payload)
 }
 
+// create a new user
 func (app *application) InsertUser(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("insert user TOKEN")
 	var createUser models.User
