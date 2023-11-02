@@ -6,12 +6,14 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/UpLiftL1f3/Spotify-Micro-Services/monolithic-service/internal/env"
 	functions "github.com/UpLiftL1f3/Spotify-Micro-Services/shared/functions"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const (
@@ -86,9 +88,8 @@ func (m *TokenModel) InsertToken(t *Token, u *User) error {
 	defer cancel()
 
 	//* DELETE EXISTING TOKENS
-	// stmt := fmt.Sprintf("DELETE FROM %s WHERE user_id = ?", env.TokensTableName)
 	stmt := functions.BuildDeleteQuery(env.TokensTableName, "user_id")
-	fmt.Printf("INSPECT IT 1?: %s", stmt)
+	// fmt.Printf("INSPECT IT 1?: %s", stmt)
 	_, err := m.DB.ExecContext(ctx, stmt, u.ID)
 	if err != nil {
 		fmt.Println("Query Row Error: ", err)
@@ -97,14 +98,77 @@ func (m *TokenModel) InsertToken(t *Token, u *User) error {
 
 	var newID uuid.UUID
 	stmt, values := functions.BuildInsertQuery(env.TokensTableName, t.TokenToMap(u))
-	fmt.Printf("INSPECT IT 2?: %s, %v", stmt, values)
+	// fmt.Printf("INSPECT IT 2?: %s, %v", stmt, values)
 
 	if err = m.DB.QueryRowContext(ctx, stmt, values...).Scan(&newID); err != nil {
 		fmt.Println("Query Row Error: ", err)
 		return err
 	}
 
+	fmt.Println("INSPECT IT 3")
 	return nil
+}
+
+func (m *TokenModel) GetUserForToken(token string) (*User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	fmt.Println("Token BEFORE Hash:", token)
+
+	tokenHash := sha256.Sum256([]byte(token))
+	fmt.Println("TokenHash: ", tokenHash)
+
+	//* Find the User's Email
+	stmt := functions.BuildFindOneFieldQuery(env.TokensTableName, "token_hash", "email")
+	fmt.Printf("INSPECT IT 1?: %s", stmt)
+	userEmail := ""
+	if err := m.DB.QueryRowContext(ctx, stmt, pq.Array(tokenHash)).Scan(&userEmail); err != nil {
+		fmt.Println("Query Row Error: ", err)
+		return nil, err
+	}
+
+	//* Find the User
+	fmt.Println("USER EMAIL: ", userEmail)
+	query := functions.BuildFindOneQuery(env.UsersTableName, "email")
+
+	var user User
+	row := m.DB.QueryRowContext(ctx, query, userEmail)
+
+	var avatarJSON []byte // Create a []byte variable to store the JSON data
+
+	err := row.Scan(
+		&user.ID,
+		&user.Email,
+		&user.FirstName,
+		&user.LastName,
+		&user.Password,
+		&user.Verified,
+		&avatarJSON,
+		pq.Array(&user.ActiveEvents),
+		pq.Array(&user.Followers),
+		pq.Array(&user.Following),
+		pq.Array(&user.Token),
+		&user.Active,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		fmt.Println("error: ", err.Error())
+		return nil, err
+
+	}
+
+	// Unmarshal the JSON data into the *models.Avatar struct
+	if len(avatarJSON) > 0 {
+		err = json.Unmarshal(avatarJSON, &user.Avatar)
+		if err != nil {
+			fmt.Println("error 2: ", err.Error())
+			return nil, err
+		}
+	}
+
+	return &user, nil
 }
 
 //	________          __

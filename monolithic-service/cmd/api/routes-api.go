@@ -27,7 +27,8 @@ func (app *application) routes() http.Handler {
 	}
 
 	// Add your routes to the mux
-	mux.HandleFunc("/api/authenticate", app.CreateAuthToken)
+	mux.HandleFunc("/api/is-authenticated", app.CheckAuthentication)
+	mux.HandleFunc("/api/authenticate", app.SignIn)
 	mux.HandleFunc("/api/insertUser", app.InsertUser)
 	// mux.HandleFunc("/auth-grpc", app.AuthVerifyEmail)
 	// mux.Handle("/log-grpc", runFunc(app.LogViaGRPC))
